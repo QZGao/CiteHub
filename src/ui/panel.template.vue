@@ -1,6 +1,3 @@
-<!--
-  Vue template for the Cite Hub inspector panel component.
--->
 <template>
 	<div class="citehub-shell" v-if="visible">
 		<button
@@ -62,7 +59,7 @@
 						<div
 							v-for="(ref, idx) in filteredRefs"
 							:key="ref.id || idx"
-							:id="idx === 0 || bucketFor(filteredRefs[idx - 1]) !== bucketFor(ref) ? 'citehub-anchor-' + bucketFor(ref) : null"
+							:id="idx === 0 || bucketFor(filteredRefs[idx - 1]) !== bucketFor(ref) ? 'citehub-anchor-' + bucketFor(ref) : undefined"
 							class="citehub-row"
 							:class="{ 'is-selected': selectedRef && selectedRef.id === ref.id }"
 							@click.prevent="selectRef(ref)"
@@ -73,8 +70,8 @@
 									class="citehub-row__name-input"
 									type="text"
 									:value="ref.name || ''"
-									@blur="commitRefName(ref, $event.target.value)"
-									@keydown.enter.prevent="commitRefName(ref, $event.target.value)"
+									@blur="commitRefNameFromEvent(ref, $event)"
+									@keydown.enter.prevent="commitRefNameFromEvent(ref, $event)"
 									@keydown.escape.prevent="cancelEditRefName(ref)"
 									@click.stop
 								/>
@@ -191,3 +188,64 @@
 		</div>
 	</div>
 </template>
+
+<script setup lang="ts">
+// This script exists only to give the Vue/TS plugin type information for the template.
+import type { InspectorCtx, Reference } from '../types';
+
+type TemplateCtx = InspectorCtx & {
+	closeDialog(): void;
+	scrollToBucket(bucket: string): void;
+	onQueryInput(evt: Event): void;
+	refreshList(): void | Promise<void>;
+	bucketFor(ref: Reference): string;
+	selectRef(ref: Reference): void;
+	commitRefNameFromEvent(ref: Reference, evt: Event): void;
+	commitRefName(ref: Reference, newName: string): void;
+	cancelEditRefName(ref: Reference): void;
+	refName(ref: Reference): string;
+	editRefName(ref: Reference): void;
+	copyRefName(ref: Reference): void;
+	refUses(ref: Reference): number;
+	copyRefContent(ref: Reference): void;
+	saveChanges(): void;
+	toggleSettings(): void;
+	saveSettings(): void;
+	startResize(evt: MouseEvent): void;
+};
+
+// Dummy binding so Volar knows what identifiers are available in the template.
+const ctx = {} as TemplateCtx;
+const {
+	visible,
+	open,
+	closeDialog,
+	firstByBucket,
+	scrollToBucket,
+	query,
+	onQueryInput,
+	refreshList,
+	hasRefs,
+	filteredRefs,
+	bucketFor,
+	selectedRef,
+	selectRef,
+	editingRefId,
+	commitRefNameFromEvent,
+	commitRefName,
+	cancelEditRefName,
+	refName,
+	editRefName,
+	copyRefName,
+	refUses,
+	copyRefContent,
+	hasPendingChanges,
+	saveChanges,
+	pendingChanges,
+	toggleSettings,
+	showSettings,
+	settings,
+	saveSettings,
+	startResize
+} = ctx;
+</script>

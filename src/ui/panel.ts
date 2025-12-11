@@ -318,6 +318,11 @@ export async function openInspectorDialog(refs: Reference[], refreshFn?: () => P
 					}
 				}, 0);
 			},
+			commitRefNameFromEvent(this: InspectorCtx & { commitRefName: (ref: Reference, newName: string) => void }, ref: Reference, event: Event): void {
+				const target = event.target as HTMLInputElement | null;
+				const value = target?.value ?? '';
+				this.commitRefName(ref, value);
+			},
 			commitRefName(this: InspectorCtx, ref: Reference, newName: string): void {
 				const oldName = this.pendingChanges.find((c) => c.refId === ref.id)?.oldName ?? ref.name ?? '';
 				this.editingRefId = null;
