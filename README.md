@@ -37,9 +37,10 @@ npm test              # Run Vitest tests
 
 ## Credits
 
-- Icons:
-  - [Codex](https://doc.wikimedia.org/codex/latest/) (MIT & CC BY 4.0)
-  - [Codicons](https://github.com/microsoft/vscode-codicons) (MIT & CC BY 4.0)
-- Prior work:
+- Icons and assets from:
+  - [Codex](https://doc.wikimedia.org/codex/latest/) (MIT and CC BY 4.0)
+  - [Codicons](https://github.com/microsoft/vscode-codicons) (MIT and CC BY 4.0)
+- Inspired by the following works:
   - [QuickEditExt-Citations](https://github.com/QZGao/QuickEditExt-Citations) (MIT)
-  - [refOrganizer](https://github.com/QZGao/refOrganizer) and its upstream [refCon](https://github.com/Cumbril/refcon) (GNU FDL 1.3, CC BY-SA 3.0, & GNU GPL 2.0)
+  - [refOrganizer](https://github.com/QZGao/refOrganizer) and its upstream [refCon](https://github.com/Cumbril/refcon) (GNU GPL 3.0)
+  - [ProveIt](https://en.wikipedia.org/wiki/Wikipedia:ProveIt) (CC BY-SA 3.0 and GPL 2.0)
