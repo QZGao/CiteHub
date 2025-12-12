@@ -72,4 +72,6 @@ export type InspectorCtx = InspectorState & {
 	firstByBucket: Record<string, string>;
 	hasPendingChanges: boolean;
 	hasRefs: boolean;
+	nameConflicts: Set<string>;
+	hasConflicts: boolean;
 };

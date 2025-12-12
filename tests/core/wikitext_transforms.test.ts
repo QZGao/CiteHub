@@ -116,4 +116,38 @@ Repeat <ref name="common">Common content</ref> and again <ref name="common" />
 
 		expect(result.wikitext).toContain('{{r|bilibili-renamed|sohu-renamed|dualshockers-renamed}}');
 	});
+
+	it('names an unnamed reference via renameNameless', () => {
+		const source = 'Intro <ref>Nameless content</ref>';
+		const result = transformWikitext(source, {
+			renameNameless: { __nameless_0: 'NamedRef' },
+			locationMode: 'all_inline'
+		});
+
+		expect(result.wikitext).toContain('<ref name="NamedRef">Nameless content</ref>');
+	});
+
+	it('names one of multiple unnamed references', () => {
+		const source = 'First <ref>Uno</ref> Second <ref>Dos</ref> Third <ref>Tres</ref>';
+		const result = transformWikitext(source, {
+			renameNameless: { __nameless_1: 'SecondRef' },
+			locationMode: 'all_inline'
+		});
+
+		expect(result.wikitext).toContain('<ref name="SecondRef">Dos</ref>');
+		expect(result.wikitext).toContain('<ref>Uno</ref>');
+		expect(result.wikitext).toContain('<ref>Tres</ref>');
+	});
+
+	it('names multiple unnamed references in order when not explicitly keyed', () => {
+		const source = 'First <ref>Uno</ref> Second <ref>Dos</ref> Third <ref> Tres </ref>';
+		const result = transformWikitext(source, {
+			renameNameless: { a: 'RefA', b: 'RefB' },
+			locationMode: 'all_inline'
+		});
+
+		expect(result.wikitext).toContain('<ref name="RefA">Uno</ref>');
+		expect(result.wikitext).toContain('<ref name="RefB">Dos</ref>');
+		expect(result.wikitext).toContain('<ref>Tres</ref>');
+	});
 });

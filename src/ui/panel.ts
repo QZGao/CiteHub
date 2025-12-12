@@ -203,6 +203,23 @@ export async function openInspectorDialog(refs: Reference[], refreshFn?: () => P
 			hasPendingChanges(this: InspectorCtx): boolean {
 				return this.pendingChanges.length > 0;
 			},
+			nameConflicts(this: InspectorCtx): Set<string> {
+				const counts = new Map<string, number>();
+				this.refs.forEach((ref) => {
+					if (!ref.name) return;
+					const key = ref.name.trim();
+					if (!key) return;
+					counts.set(key, (counts.get(key) || 0) + 1);
+				});
+				const dupes = new Set<string>();
+				counts.forEach((count, key) => {
+					if (count > 1) dupes.add(key);
+				});
+				return dupes;
+			},
+			hasConflicts(this: InspectorCtx): boolean {
+				return (this.nameConflicts?.size ?? 0) > 0;
+			},
 			copyFormatOptions(): Array<{ label: string; value: string }> {
 				return [
 					{ label: 'raw name', value: 'raw' },
@@ -308,6 +325,11 @@ export async function openInspectorDialog(refs: Reference[], refreshFn?: () => P
 				const target = evt.target as HTMLInputElement | null;
 				this.query = target?.value ?? '';
 			},
+			refHasConflict(this: InspectorCtx, ref: Reference): boolean {
+				if (!ref.name) return false;
+				const conflicts = this.nameConflicts;
+				return conflicts instanceof Set ? conflicts.has(ref.name.trim()) : false;
+			},
 			copyRefName(this: InspectorCtx, ref: Reference): void {
 				const name = ref.name || '';
 				if (!name) return;
@@ -375,6 +397,10 @@ export async function openInspectorDialog(refs: Reference[], refreshFn?: () => P
 				this.showSettings = !this.showSettings;
 			},
 			async saveChanges(this: InspectorCtx): Promise<void> {
+				if (this.hasConflicts) {
+					mw.notify?.('Resolve duplicate reference names before saving.', { type: 'error', title: 'Cite Forge' });
+					return;
+				}
 				if (!this.pendingChanges.length) {
 					mw.notify?.('No pending Cite Forge changes to apply.', { type: 'info' });
 					return;
@@ -382,9 +408,14 @@ export async function openInspectorDialog(refs: Reference[], refreshFn?: () => P
 				try {
 					const base = await getWikitext();
 					const renameMap: Record<string, string> = {};
+					const renameNameless: Record<string, string> = {};
 					this.pendingChanges.forEach((c) => {
-						if (c.oldName && c.newName && c.oldName !== c.newName) {
-							renameMap[c.oldName] = c.newName;
+						if (c.newName && c.oldName !== c.newName) {
+							if (c.oldName) {
+								renameMap[c.oldName] = c.newName;
+							} else {
+								renameNameless[c.refId] = c.newName;
+							}
 						}
 					});
 
@@ -397,6 +428,7 @@ export async function openInspectorDialog(refs: Reference[], refreshFn?: () => P
 
 					const transformOpts = {
 						renameMap,
+						renameNameless,
 						sortRefs: Boolean(this.settings.sortRefs),
 						useTemplateR: Boolean(this.settings.useTemplateR),
 						locationMode: placementMode,

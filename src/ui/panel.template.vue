@@ -61,7 +61,7 @@
 							:key="ref.id || idx"
 							:id="idx === 0 || bucketFor(filteredRefs[idx - 1]) !== bucketFor(ref) ? 'citeforge-anchor-' + bucketFor(ref) : undefined"
 							class="citeforge-row"
-							:class="{ 'is-selected': selectedRef && selectedRef.id === ref.id }"
+							:class="{ 'is-selected': selectedRef && selectedRef.id === ref.id, 'has-conflict': refHasConflict(ref) }"
 							@click.prevent="selectRef(ref)"
 						>
 							<div class="citeforge-row__title">
@@ -75,14 +75,17 @@
 									@keydown.escape.prevent="cancelEditRefName(ref)"
 									@click.stop
 								/>
-								<span v-else class="citeforge-row__name">{{ refName(ref) }}</span>
-								<span class="citeforge-row__name-actions" v-if="ref.name && editingRefId !== ref.id">
-									<button class="citeforge-icon-btn" type="button" @click.stop.prevent="editRefName(ref)" title="Edit ref name">
+								<span v-else class="citeforge-row__name">
+									<span v-if="!ref.name" class="citeforge-row__nameless" title="Unnamed reference">∅</span>
+									{{ refName(ref) }}
+								</span>
+								<span class="citeforge-row__name-actions" v-if="editingRefId !== ref.id">
+									<button class="citeforge-icon-btn" type="button" @click.stop.prevent="editRefName(ref)" :title="ref.name ? 'Edit ref name' : 'Name this reference'">
 										<svg viewBox="0 0 20 20" width="12" height="12" aria-hidden="true">
 											<path fill="currentColor" d="m16.77 8 1.94-2a1 1 0 0 0 0-1.41l-3.34-3.3a1 1 0 0 0-1.41 0L12 3.23zM1 14.25V19h4.75l9.96-9.96-4.75-4.75z"/>
 										</svg>
 									</button>
-									<button class="citeforge-icon-btn" type="button" @click.stop.prevent="copyRefName(ref)" title="Copy ref name">
+									<button v-if="ref.name" class="citeforge-icon-btn" type="button" @click.stop.prevent="copyRefName(ref)" title="Copy ref name">
 										<svg viewBox="0 0 20 20" width="12" height="12" aria-hidden="true">
 											<path fill="currentColor" d="M3 3h8v2h2V3c0-1.1-.895-2-2-2H3c-1.1 0-2 .895-2 2v8c0 1.1.895 2 2 2h2v-2H3z"/>
 											<path fill="currentColor" d="M9 9h8v8H9zm0-2c-1.1 0-2 .895-2 2v8c0 1.1.895 2 2 2h8c1.1 0 2-.895 2-2V9c0-1.1-.895-2-2-2z"/>
@@ -159,7 +162,7 @@
 				>
 					<div class="citeforge-settings__title">Cite Forge Settings</div>
 					<div class="citeforge-settings__row citeforge-settings__row--stack">
-						<span>Copy format</span>
+						<span>Copy ref name format</span>
 						<div class="citeforge-select-wrap">
 							<cdx-select
 								v-model:selected="settings.copyFormat"
@@ -238,6 +241,8 @@ type TemplateCtx = InspectorCtx & {
 	copyRefName(ref: Reference): void;
 	refUses(ref: Reference): number;
 	copyRefContent(ref: Reference): void;
+	hasConflicts: boolean;
+	refHasConflict(ref: Reference): boolean;
 	saveChanges(): void;
 	toggleSettings(): void;
 	saveSettings(): void;
@@ -272,6 +277,8 @@ const {
 	refUses,
 	copyRefContent,
 	hasPendingChanges,
+	hasConflicts,
+	refHasConflict,
 	saveChanges,
 	pendingChanges,
 	toggleSettings,

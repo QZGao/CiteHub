@@ -2,6 +2,7 @@ type LocationMode = 'all_inline' | 'all_ldr' | { minUsesForLdr: number };
 
 export interface TransformOptions {
 	renameMap?: Record<string, string>;
+	renameNameless?: Record<string, string>;
 	dedupe?: boolean;
 	locationMode?: LocationMode;
 	sortRefs?: boolean;
@@ -36,6 +37,7 @@ interface RefUseInternal {
 }
 
 interface RefRecord {
+	id: string;
 	name: string | null;
 	group: string | null;
 	key: RefKey;
@@ -68,6 +70,7 @@ const DEFAULT_REFLIST_TEMPLATES = ['reflist', 'references'];
 export function transformWikitext(wikitext: string, options: TransformOptions = {}): TransformResult {
 	const warnings: string[] = [];
 	const renameMap = normalizeRenameMap(options.renameMap || {});
+	const renameNameless = options.renameNameless || {};
 	const dedupe = Boolean(options.dedupe);
 	const sortRefs = Boolean(options.sortRefs);
 	const useTemplateR = Boolean(options.useTemplateR);
@@ -79,7 +82,8 @@ export function transformWikitext(wikitext: string, options: TransformOptions = 
 	const ctx = parseWikitext(wikitext, reflistNames);
 	ctx.refs = normalizeRefKeys(ctx.refs);
 
-	applyRenames(ctx.refs, renameMap);
+	applyRenames(ctx.refs, renameMap, renameNameless);
+	ctx.refs = normalizeRefKeys(ctx.refs);
 	const deduped = dedupe ? applyDedupe(ctx.refs) : [];
 	const targetMode = normalizeLocationMode(options.locationMode);
 	assignLocations(ctx.refs, targetMode);
@@ -87,7 +91,8 @@ export function transformWikitext(wikitext: string, options: TransformOptions = 
 	const plan = buildReplacementPlan(ctx, {
 		useTemplateR,
 		sortRefs,
-		normalizeAll
+		normalizeAll,
+		renameLookup: (name: string) => renameMap[name]
 	});
 
 	const replaced = applyReplacements(wikitext, plan.replacements);
@@ -122,14 +127,38 @@ function normalizeRenameMap(rename: Record<string, string>): Record<string, stri
 	return map;
 }
 
-function applyRenames(refs: Map<RefKey, RefRecord>, rename: Record<string, string>): void {
+function applyRenames(refs: Map<RefKey, RefRecord>, rename: Record<string, string>, renameNameless: Record<string, string>): void {
+	const appliedNameless = new Set<string>();
 	refs.forEach((ref) => {
-		if (!ref.name) return;
-		const next = rename[ref.name];
-		if (next && next !== ref.name) {
-			ref.name = next;
+		if (ref.name) {
+			const next = rename[ref.name];
+			if (next && next !== ref.name) {
+				ref.name = next;
+			}
+		} else {
+			const next = renameNameless[ref.id] || renameNameless[ref.key];
+			if (next) {
+				ref.name = next;
+				ref.key = refKey(ref.name, ref.group);
+				appliedNameless.add(ref.id);
+				appliedNameless.add(ref.key);
+			}
 		}
 	});
+
+	// Fallback: apply remaining nameless renames to unnamed refs in order
+	const remainingEntries = Object.entries(renameNameless).filter(([k]) => !appliedNameless.has(k));
+	if (remainingEntries.length) {
+		let idx = 0;
+		refIterator(refs).forEach((ref) => {
+			if (idx >= remainingEntries.length) return;
+			if (ref.name) return;
+			const [, newName] = remainingEntries[idx];
+			ref.name = newName;
+			ref.key = refKey(ref.name, ref.group);
+			idx++;
+		});
+	}
 }
 
 function applyDedupe(refs: Map<RefKey, RefRecord>): Array<{ from: string; to: string }> {
@@ -218,9 +247,11 @@ function refIterator(refs: Map<RefKey, RefRecord>): RefRecord[] {
 
 function normalizeRefKeys(refs: Map<RefKey, RefRecord>): Map<RefKey, RefRecord> {
 	const next = new Map<RefKey, RefRecord>();
+	let namelessCounter = 0;
 	refIterator(refs).forEach((ref) => {
-		const key = refKey(ref.name, ref.group);
+		const key = ref.name ? refKey(ref.name, ref.group) : ref.key || ref.id || `__nameless_${namelessCounter++}`;
 		ref.key = key;
+		ref.id = ref.id || key;
 		const existing = next.get(key);
 		if (existing) {
 			existing.definitions.push(...ref.definitions);
@@ -244,12 +275,13 @@ function parseWikitext(
 	const refs = new Map<RefKey, RefRecord>();
 	const templates = findTemplates(wikitext, reflistNames);
 	const rTemplates: Array<{ id: number; start: number; end: number; names: string[] }> = [];
+	let namelessCounter = 0;
 
 	const getRef = (name: string | null, group: string | null): RefRecord => {
-		const key = refKey(name, group);
+		const key = name ? refKey(name, group) : `__nameless_${namelessCounter++}`;
 		const existing = refs.get(key);
 		if (existing) return existing;
-		const rec: RefRecord = { name, group, key, definitions: [], uses: [], ldrDefinitions: [], targetLocation: 'inline' };
+		const rec: RefRecord = { id: key, name, group, key, definitions: [], uses: [], ldrDefinitions: [], targetLocation: 'inline' };
 		refs.set(key, rec);
 		return rec;
 	};
@@ -360,7 +392,12 @@ function extractAttr(attrs: string, name: string): string | null {
  */
 function buildReplacementPlan(
 	ctx: { refs: Map<RefKey, RefRecord>; templates: TemplateMatch[]; rTemplates: Array<{ id: number; start: number; end: number; names: string[] }> },
-	opts: { useTemplateR: boolean; sortRefs: boolean; normalizeAll: boolean }
+	opts: {
+		useTemplateR: boolean;
+		sortRefs: boolean;
+		normalizeAll: boolean;
+		renameLookup?: (name: string) => string | undefined;
+	}
 ): { replacements: Replacement[]; movedInline: string[]; movedLdr: string[] } {
 	const replacements: Replacement[] = [];
 	const movedInline: string[] = [];
@@ -374,7 +411,7 @@ function buildReplacementPlan(
 
 	// Replace chained {{r}} templates preserving names
 	ctx.rTemplates.forEach((tpl) => {
-		const rendered = renderRTemplate(tpl, ctx.refs, opts.useTemplateR);
+		const rendered = renderRTemplate(tpl, ctx.refs, opts.useTemplateR, opts.renameLookup);
 		if (rendered !== null) {
 			replacements.push({ start: tpl.start, end: tpl.end, text: rendered });
 		}
@@ -471,12 +508,18 @@ function escapeAttr(value: string): string {
 	return value.replace(/"/g, '&quot;');
 }
 
-function renderRTemplate(tpl: { names: string[] }, refs: Map<RefKey, RefRecord>, preferTemplateR: boolean): string | null {
+function renderRTemplate(
+	tpl: { names: string[] },
+	refs: Map<RefKey, RefRecord>,
+	preferTemplateR: boolean,
+	renameLookup?: (name: string) => string | undefined
+): string | null {
 	const targetNames: string[] = [];
 	tpl.names.forEach((name) => {
 		const ref = refs.get(refKey(name, null));
 		const canonical = ref?.canonical ?? ref;
-		const target = canonical?.name ?? name;
+		const mapped = renameLookup ? renameLookup(name) : undefined;
+		const target = mapped || canonical?.name || name;
 		if (target) {
 			targetNames.push(target);
 		}
