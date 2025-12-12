@@ -54,6 +54,7 @@ export interface InspectorState {
 		sortRefs: boolean;
 		useTemplateR: boolean;
 		makeCopies: boolean;
+		normalizeAll: boolean;
 	};
 	showSettings: boolean;
 	minHeight: number;

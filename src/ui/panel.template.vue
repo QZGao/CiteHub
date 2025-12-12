@@ -201,6 +201,9 @@
 					<cdx-checkbox v-model="settings.makeCopies">
 						Keep separate copies (no dedupe)
 					</cdx-checkbox>
+					<cdx-checkbox v-model="settings.normalizeAll">
+						Normalize reference markup
+					</cdx-checkbox>
 					<div class="citeforge-settings__actions">
 						<cdx-button weight="quiet" size="small" @click.prevent="saveSettings">
 							Save

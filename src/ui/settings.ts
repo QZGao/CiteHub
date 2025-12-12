@@ -16,6 +16,8 @@ type Settings = {
 	useTemplateR: boolean;
 	/** Do not dedupe identical refs; keep separate copies. */
 	makeCopies: boolean;
+	/** Normalize generated ref markup (trim/compact whitespace). */
+	normalizeAll: boolean;
 };
 
 const SETTINGS_KEY = 'citeforge-settings';
@@ -30,7 +32,8 @@ const DEFAULT_SETTINGS: Settings = {
 	minUsesForLdr: 2,
 	sortRefs: true,
 	useTemplateR: false,
-	makeCopies: false
+	makeCopies: false,
+	normalizeAll: true
 };
 
 /**

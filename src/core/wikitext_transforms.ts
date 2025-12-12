@@ -7,6 +7,7 @@ export interface TransformOptions {
 	sortRefs?: boolean;
 	useTemplateR?: boolean;
 	reflistTemplates?: string[];
+	normalizeAll?: boolean;
 }
 
 export interface TransformResult {
@@ -70,6 +71,7 @@ export function transformWikitext(wikitext: string, options: TransformOptions = 
 	const dedupe = Boolean(options.dedupe);
 	const sortRefs = Boolean(options.sortRefs);
 	const useTemplateR = Boolean(options.useTemplateR);
+	const normalizeAll = options.normalizeAll !== false;
 	const reflistNames = (options.reflistTemplates && options.reflistTemplates.length > 0
 		? options.reflistTemplates
 		: DEFAULT_REFLIST_TEMPLATES).map((n) => n.toLowerCase());
@@ -84,7 +86,8 @@ export function transformWikitext(wikitext: string, options: TransformOptions = 
 
 	const plan = buildReplacementPlan(ctx, {
 		useTemplateR,
-		sortRefs
+		sortRefs,
+		normalizeAll
 	});
 
 	const replaced = applyReplacements(wikitext, plan.replacements);
@@ -357,7 +360,7 @@ function extractAttr(attrs: string, name: string): string | null {
  */
 function buildReplacementPlan(
 	ctx: { refs: Map<RefKey, RefRecord>; templates: TemplateMatch[]; rTemplates: Array<{ id: number; start: number; end: number; names: string[] }> },
-	opts: { useTemplateR: boolean; sortRefs: boolean }
+	opts: { useTemplateR: boolean; sortRefs: boolean; normalizeAll: boolean }
 ): { replacements: Replacement[]; movedInline: string[]; movedLdr: string[] } {
 	const replacements: Replacement[] = [];
 	const movedInline: string[] = [];
@@ -392,9 +395,10 @@ function buildReplacementPlan(
 			}
 			const isDefinition = ref.definitions.includes(use);
 			const canonicalContent = content || '';
+			const normalizedContent = opts.normalizeAll ? normalizeContentBlock(canonicalContent) : canonicalContent;
 			if (targetLocation === 'inline' && canonical === ref && useIdx === 0 && canonicalContent) {
 				// Ensure first use holds definition
-				const rendered = renderRefTag(targetName, ref.group, canonicalContent);
+				const rendered = renderRefTag(targetName, ref.group, normalizedContent);
 				replacements.push({ start: use.start, end: use.end, text: rendered });
 				if (targetName) movedInline.push(targetName);
 			} else {
@@ -459,7 +463,8 @@ function renderRefTag(name: string | null, group: string | null, content: string
 	const attrs: string[] = [];
 	if (name) attrs.push(`name="${escapeAttr(name)}"`);
 	if (group) attrs.push(`group="${escapeAttr(group)}"`);
-	return `<ref${attrs.length ? ' ' + attrs.join(' ') : ''}>${content}</ref>`;
+	const inner = normalizeContentBlock(content);
+	return `<ref${attrs.length ? ' ' + attrs.join(' ') : ''}>${inner}</ref>`;
 }
 
 function escapeAttr(value: string): string {
@@ -483,6 +488,13 @@ function renderRTemplate(tpl: { names: string[] }, refs: Map<RefKey, RefRecord>,
 		return `{{r|${targetNames.join('|')}}}`;
 	}
 	return targetNames.map((n) => renderRefSelf(n, null, false)).join(' ');
+}
+
+function normalizeContentBlock(content: string): string {
+	let text = String(content ?? '');
+	text = text.replace(/[ \t]+\n/g, '\n'); // trim trailing spaces on lines
+	text = text.replace(/\n{3,}/g, '\n\n'); // collapse excessive blank lines
+	return text.trim();
 }
 
 function updateReflistTemplate(tpl: TemplateMatch, ldrEntries: Array<{ name: string; group: string | null; content: string }>, sort: boolean): string {

@@ -400,7 +400,8 @@ export async function openInspectorDialog(refs: Reference[], refreshFn?: () => P
 						sortRefs: Boolean(this.settings.sortRefs),
 						useTemplateR: Boolean(this.settings.useTemplateR),
 						locationMode: placementMode,
-						dedupe: !this.settings.makeCopies
+						dedupe: !this.settings.makeCopies,
+						normalizeAll: Boolean(this.settings.normalizeAll)
 					} satisfies import('../core/wikitext_transforms').TransformOptions;
 
 					const result = transformWikitext(base, transformOpts);
