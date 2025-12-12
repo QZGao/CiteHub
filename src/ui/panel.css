@@ -106,6 +106,9 @@
 	gap: 4px;
 	align-content: start;
 	flex-shrink: 0;
+	overflow-y: auto;
+	padding-right: 10px;
+	margin-right: -10px;
 }
 
 .citeforge-index-btn {
@@ -131,6 +134,8 @@
 .citeforge-panel__list {
 	overflow-x: hidden;
 	overflow-y: auto;
+	padding-right: 10px;
+	margin-right: -10px;
 	max-height: 100%;
 	flex: 1 1 auto;
 	min-width: 0;
@@ -550,6 +555,8 @@
 	width: 280px;
 	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
 	z-index: 1;
+	max-height: calc(100% - 48px);
+	overflow-y: auto;
 }
 
 .citeforge-settings__title {
