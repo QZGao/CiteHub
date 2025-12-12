@@ -158,46 +158,49 @@
 					v-if="showSettings"
 				>
 					<div class="citeforge-settings__title">Cite Forge Settings</div>
-					<label class="citeforge-settings__row">
+					<div class="citeforge-settings__row citeforge-settings__row--stack">
 						<span>Copy format</span>
-						<select v-model="settings.copyFormat">
-							<option value="raw">raw name</option>
-							<option value="r">{{ '{' }}{r|name}}</option>
-							<option value="ref">&lt;ref name="name" /&gt;</option>
-						</select>
-					</label>
-					<label class="citeforge-settings__row">
-						<input type="checkbox" v-model="settings.showCiteRefCopyBtn" />
-						<span>Show citation hover copy popup</span>
-					</label>
-					<label class="citeforge-settings__row">
-						<input type="checkbox" v-model="settings.showInUserNs" />
-						<span>Enable in User namespace</span>
-					</label>
-					<label class="citeforge-settings__row">
+						<div class="citeforge-select-wrap">
+							<cdx-select
+								v-model:selected="settings.copyFormat"
+								:menu-items="copyFormatOptions"
+							/>
+						</div>
+					</div>
+					<cdx-checkbox v-model="settings.showCiteRefCopyBtn">
+						Show citation hover copy popup
+					</cdx-checkbox>
+					<cdx-checkbox v-model="settings.showInUserNs">
+						Enable in User namespace
+					</cdx-checkbox>
+					<div class="citeforge-settings__row citeforge-settings__row--stack">
 						<span>Placement</span>
-						<select v-model="settings.placementMode">
-							<option value="threshold">Refs with ≥ N uses to reflist</option>
-							<option value="all_ldr">All refs to reflist</option>
-							<option value="all_inline">All refs inline</option>
-						</select>
-					</label>
-					<label class="citeforge-settings__row" v-if="settings.placementMode === 'threshold'">
+						<div class="citeforge-select-wrap">
+							<cdx-select
+								v-model:selected="settings.placementMode"
+								:menu-items="placementOptions"
+							/>
+						</div>
+					</div>
+					<div class="citeforge-settings__row" v-if="settings.placementMode === 'threshold'">
 						<span>Minimum uses for reflist</span>
-						<input type="number" min="1" v-model.number="settings.minUsesForLdr" />
-					</label>
-					<label class="citeforge-settings__row">
-						<input type="checkbox" v-model="settings.sortRefs" />
-						<span>Sort reflist entries</span>
-					</label>
-					<label class="citeforge-settings__row">
-						<input type="checkbox" v-model="settings.useTemplateR" />
-						<span>Prefer {{ '{' }}{r|name}} for uses</span>
-					</label>
-					<label class="citeforge-settings__row">
-						<input type="checkbox" v-model="settings.makeCopies" />
-						<span>Keep separate copies (no dedupe)</span>
-					</label>
+						<div class="citeforge-input-wrap">
+							<cdx-text-input
+								type="number"
+								min="1"
+								v-model.number="settings.minUsesForLdr"
+							/>
+						</div>
+					</div>
+					<cdx-checkbox v-model="settings.sortRefs">
+						Sort reflist entries
+					</cdx-checkbox>
+					<cdx-checkbox v-model="settings.useTemplateR">
+						Prefer {{ '{' }}{r|name}} for uses
+					</cdx-checkbox>
+					<cdx-checkbox v-model="settings.makeCopies">
+						Keep separate copies (no dedupe)
+					</cdx-checkbox>
 					<div class="citeforge-settings__actions">
 						<cdx-button weight="quiet" size="small" @click.prevent="saveSettings">
 							Save
@@ -236,6 +239,8 @@ type TemplateCtx = InspectorCtx & {
 	toggleSettings(): void;
 	saveSettings(): void;
 	startResize(evt: MouseEvent): void;
+	copyFormatOptions: { label: string; value: string }[];
+	placementOptions: { label: string; value: string }[];
 };
 
 // Dummy binding so Volar knows what identifiers are available in the template.
@@ -270,6 +275,8 @@ const {
 	showSettings,
 	settings,
 	saveSettings,
-	startResize
+	startResize,
+	copyFormatOptions,
+	placementOptions
 } = ctx;
 </script>

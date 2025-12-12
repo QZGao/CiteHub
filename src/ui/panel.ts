@@ -203,6 +203,20 @@ export async function openInspectorDialog(refs: Reference[], refreshFn?: () => P
 			hasPendingChanges(this: InspectorCtx): boolean {
 				return this.pendingChanges.length > 0;
 			},
+			copyFormatOptions(): Array<{ label: string; value: string }> {
+				return [
+					{ label: 'raw name', value: 'raw' },
+					{ label: '{{r|name}}', value: 'r' },
+					{ label: '<ref name="name" />', value: 'ref' }
+				];
+			},
+			placementOptions(): Array<{ label: string; value: 'threshold' | 'all_ldr' | 'all_inline' }> {
+				return [
+					{ label: 'Refs with ≥ N uses to reflist', value: 'threshold' },
+					{ label: 'All refs to reflist', value: 'all_ldr' },
+					{ label: 'All refs inline', value: 'all_inline' }
+				];
+			},
 			sortedRefs(this: InspectorCtx): Reference[] {
 				const arr = Array.isArray(this.refs) ? this.refs.slice() : [];
 				arr.sort((a, b) => {
