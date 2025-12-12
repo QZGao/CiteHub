@@ -169,7 +169,7 @@
 				<div class="citeforge-mass-rename-footer-actions">
 					<cdx-button weight="quiet" @click.prevent="closeDialog">Cancel</cdx-button>
 					<cdx-button weight="primary" :disabled="applyDisabled" @click.prevent="applyRenames">
-						Preview mass rename
+						Send to inspector
 					</cdx-button>
 				</div>
 			</footer>

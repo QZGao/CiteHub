@@ -17,7 +17,7 @@ import { openMassRenameDialog } from './mass_rename';
 import panelStyles from './panel.css';
 import PANEL_TEMPLATE from './panel.template.vue';
 
-import { alphaIndex } from "../core/string_utils";
+import { alphaIndex, escapeAttr } from '../core/string_utils';
 
 const PANEL_STYLE_ELEMENT_ID = 'citeforge-panel-styles';
 const HIGHLIGHT_CLASS = 'citeforge-ref-highlight';
@@ -327,21 +327,33 @@ export async function openInspectorDialog(refs: Reference[], refreshFn?: () => P
 				const conflicts = this.nameConflicts;
 				return conflicts instanceof Set ? conflicts.has(ref.name.trim()) : false;
 			},
-			copyRefName(this: InspectorCtx, ref: Reference): void {
-				const name = ref.name || '';
+			copyRefName(this: InspectorCtx, ref?: Reference): void {
+				const targetRef = ref ?? this.selectedRef;
+				if (!targetRef) return;
+				const name = targetRef.name || '';
 				if (!name) return;
 				const formatted = safeFormatCopy(name, this.settings.copyFormat);
 				void navigator.clipboard?.writeText(formatted).catch(() => {
 					/* ignore */
 				});
-				showCopiedBadge(ref);
+				showCopiedBadge(targetRef);
 			},
-			copyRefContent(_this: InspectorCtx, ref: Reference): void {
-				const content = ref.contentWikitext || '';
-				void navigator.clipboard?.writeText(content).catch(() => {
+			copyRefContent(this: InspectorCtx, ref?: Reference): void {
+				const targetRef = ref ?? this.selectedRef;
+				if (!targetRef) {
+					mw.notify?.('No reference selected to copy.', { type: 'warn', title: 'Cite Forge' });
+					return;
+				}
+				const name = targetRef.name ? ` name="${escapeAttr(targetRef.name)}"` : '';
+				const group = targetRef.group ? ` group="${escapeAttr(targetRef.group)}"` : '';
+				const content = (targetRef.contentWikitext || '').trim();
+				const raw = content
+					? `<ref${name}${group}>${content}</ref>`
+					: `<ref${name}${group} />`;
+				void navigator.clipboard?.writeText(raw).catch(() => {
 					/* ignore */
 				});
-				showCopiedBadge(ref);
+				showCopiedBadge(targetRef);
 			},
 			editRefName(this: InspectorCtx, ref: Reference): void {
 				this.editingRefId = ref.id;

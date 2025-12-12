@@ -14,6 +14,7 @@ A citation management workbench for Wikipedia. Inspect, search, edit, and copy r
 - **Theme support** – Adapts to light/dark/system preference; namespace-aware (disabled on non-wikitext pages)
 - **Wikitext transforms** (configurable): rename, dedupe, normalize ref markup, prefer `{{r}}` or `<ref>`, move refs inline↔LDR (all-inline, all-LDR, or threshold), sort reflist entries, keep copies vs dedupe, and rename nameless refs
 - **Template support** – Parses `<ref>`, self-closing `<ref />`, `{{r}}` (including chained names), and reflist `refs=` blocks
+- **Mass renamer** – Pick multiple naming parts (author/title/work/domain/year/full date/etc.), collision suffix style, and punctuation/diacritic handling. Applies generated renames back into the inspector’s pending changes for diff preview.
 
 ## Installation
 
@@ -47,3 +48,4 @@ npm test              # Run Vitest tests
   - [QuickEditExt-Citations](https://github.com/QZGao/QuickEditExt-Citations) (MIT)
   - [refOrganizer](https://github.com/QZGao/refOrganizer) and its upstream [refCon](https://github.com/Cumbril/refcon) (GNU GPL 3.0)
   - [ProveIt](https://en.wikipedia.org/wiki/Wikipedia:ProveIt) (CC BY-SA 3.0 and GPL 2.0)
+  - [RefRenamer](https://en.wikipedia.org/wiki/User:Nardog/RefRenamer) (CC BY-SA 4.0)

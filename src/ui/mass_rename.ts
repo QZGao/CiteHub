@@ -275,18 +275,18 @@ function pickField(meta: RefMetadata, field: NamingField): string | null {
 			return meta.title || null;
 		case 'work':
 			return meta.work || null;
-	case 'publisher':
-		return meta.publisher || null;
-	case 'domain':
-		return meta.domain || null;
-	case 'phrase':
-		return meta.phrase || null;
-	case 'year':
-		return meta.year || meta.textYear || null;
-	case 'fulldate':
-		return meta.dateYMD || null;
-	default:
-		return null;
+		case 'publisher':
+			return meta.publisher || null;
+		case 'domain':
+			return meta.domain || null;
+		case 'phrase':
+			return meta.phrase || null;
+		case 'year':
+			return meta.year || meta.textYear || null;
+		case 'fulldate':
+			return meta.dateYMD || null;
+		default:
+			return null;
 	}
 }
 
@@ -739,7 +739,7 @@ export async function openMassRenameDialog(refs: Reference[], options?: MassRena
 						this.open = false;
 					} else {
 						mw.notify?.('No inspector available to receive mass rename changes.', {
-							type: 'warning',
+							type: 'warn',
 							title: 'Cite Forge'
 						});
 					}

@@ -36,32 +36,32 @@
 						</cdx-button>
 					</div>
 					<div v-if="hasRefs" class="citeforge-list-wrap">
-						<div v-for="(ref, idx) in filteredRefs" :key="ref.id || idx"
-							:id="idx === 0 || bucketFor(filteredRefs[idx - 1]) !== bucketFor(ref) ? 'citeforge-anchor-' + bucketFor(ref) : undefined"
+						<div v-for="(reference, idx) in filteredRefs" :key="reference.id || idx"
+							:id="idx === 0 || bucketFor(filteredRefs[idx - 1]) !== bucketFor(reference) ? 'citeforge-anchor-' + bucketFor(reference) : undefined"
 							class="citeforge-row"
-							:class="{ 'is-selected': selectedRef && selectedRef.id === ref.id, 'has-conflict': refHasConflict(ref) }"
-							@click.prevent="selectRef(ref)">
+							:class="{ 'is-selected': selectedRef && selectedRef.id === reference.id, 'has-conflict': refHasConflict(reference) }"
+							@click.prevent="selectRef(reference)">
 							<div class="citeforge-row__title">
-								<input v-if="editingRefId === ref.id" class="citeforge-row__name-input" type="text"
-									:value="ref.name || ''" @blur="commitRefNameFromEvent(ref, $event)"
-									@keydown.enter.prevent="commitRefNameFromEvent(ref, $event)"
-									@keydown.escape.prevent="cancelEditRefName(ref)" @click.stop />
+								<input v-if="editingRefId === reference.id" class="citeforge-row__name-input" type="text"
+									:value="reference.name || ''" @blur="commitRefNameFromEvent(reference, $event)"
+									@keydown.enter.prevent="commitRefNameFromEvent(reference, $event)"
+									@keydown.escape.prevent="cancelEditRefName(reference)" @click.stop />
 								<span v-else class="citeforge-row__name">
-									<span v-if="!ref.name" class="citeforge-row__nameless"
+									<span v-if="!reference.name" class="citeforge-row__nameless"
 										title="Unnamed reference">∅</span>
-									{{ refName(ref) }}
+									{{ refName(reference) }}
 								</span>
-								<span class="citeforge-row__name-actions" v-if="editingRefId !== ref.id">
+								<span class="citeforge-row__name-actions" v-if="editingRefId !== reference.id">
 									<button class="citeforge-icon-btn" type="button"
-										@click.stop.prevent="editRefName(ref)"
-										:title="ref.name ? 'Edit ref name' : 'Name this reference'">
+										@click.stop.prevent="editRefName(reference)"
+										:title="reference.name ? 'Edit ref name' : 'Name this reference'">
 										<svg viewBox="0 0 20 20" width="12" height="12" aria-hidden="true">
 											<path fill="currentColor"
 												d="m16.77 8 1.94-2a1 1 0 0 0 0-1.41l-3.34-3.3a1 1 0 0 0-1.41 0L12 3.23zM1 14.25V19h4.75l9.96-9.96-4.75-4.75z" />
 										</svg>
 									</button>
-									<button v-if="ref.name" class="citeforge-icon-btn" type="button"
-										@click.stop.prevent="copyRefName(ref)" title="Copy ref name">
+									<button v-if="reference.name" class="citeforge-icon-btn" type="button"
+										@click.stop.prevent="copyRefName(reference)" title="Copy ref name">
 										<svg viewBox="0 0 20 20" width="12" height="12" aria-hidden="true">
 											<path fill="currentColor"
 												d="M3 3h8v2h2V3c0-1.1-.895-2-2-2H3c-1.1 0-2 .895-2 2v8c0 1.1.895 2 2 2h2v-2H3z" />
@@ -70,13 +70,13 @@
 										</svg>
 									</button>
 								</span>
-								<span class="citeforge-row__meta">Uses: {{ refUses(ref) }} <span v-if="ref.group">· {{
-									ref.group }}</span></span>
+								<span class="citeforge-row__meta">Uses: {{ refUses(reference) }} <span v-if="reference.group">· {{
+									reference.group }}</span></span>
 							</div>
-							<div class="citeforge-row__snippet">{{ (ref.contentWikitext || '').slice(0, 200) || '(No inline content captured) ' }}</div>
+							<div class="citeforge-row__snippet">{{ (reference.contentWikitext || '').slice(0, 200) || '(No inline content captured) ' }}</div>
 							<div class="citeforge-row__actions">
 								<button class="citeforge-copy-btn" type="button"
-									@click.stop.prevent="copyRefContent(ref)" title="Copy raw content">
+									@click.stop.prevent="copyRefContent(reference)" title="Copy raw content">
 									<svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true">
 										<path fill="currentColor"
 											d="M3 3h8v2h2V3c0-1.1-.895-2-2-2H3c-1.1 0-2 .895-2 2v8c0 1.1.895 2 2 2h2v-2H3z" />
