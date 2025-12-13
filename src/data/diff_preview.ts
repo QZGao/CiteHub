@@ -2,7 +2,7 @@
  * Open the standard MediaWiki diff view with provided wikitext, without saving.
  * Submits a hidden form to action=submit with wpDiff, letting the user review and save.
  */
-export function openDiffPreview(newText: string, summary = 'Cite Forge: reference adjustments'): void {
+export function openDiffPreview(newText: string, summary = '[[meta:Cite Forge|Cite Forge]]: reference adjustments'): void {
 	const title = mw.config.get('wgPageName');
 	const action = mw.util.getUrl(title, { action: 'submit' });
 	const token = mw.user.tokens.get('csrfToken') || '+\\';

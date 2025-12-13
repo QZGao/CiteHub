@@ -126,15 +126,6 @@
 						</span>
 						<span class="citeforge-tool-label">Mass rename</span>
 					</button>
-					<button class="citeforge-tool-btn" type="button" title="Structure tools (soon)">
-						<span class="citeforge-tool-icon" aria-hidden="true">
-							<svg viewBox="0 0 20 20" width="16" height="16">
-								<path fill="currentColor"
-									d="M7 15h12v2H7zm0-6h12v2H7zm0-6h12v2H7zM2 6h1V1H1v1h1zm1 9v1H2v1h1v1H1v1h3v-5H1v1zM1 8v1h2v1H1.5a.5.5 0 0 0-.5.5V13h3v-1H2v-1h1.5a.5.5 0 0 0 .5-.5v-2a.5.5 0 0 0-.5-.5z" />
-							</svg>
-						</span>
-						<span class="citeforge-tool-label">Structure</span>
-					</button>
 					<button class="citeforge-tool-btn" type="button" title="Checks (soon)">
 						<span class="citeforge-tool-icon" aria-hidden="true">
 							<svg viewBox="0 0 20 20" width="16" height="16">
