@@ -1,5 +1,5 @@
 import { Reference } from '../types';
-import { escapeAttr } from "./string_utils";
+import { escapeAttr } from './string_utils';
 
 /**
  * Parse wikitext for basic ref usages.
@@ -62,33 +62,117 @@ export function parseReferences(wikitext: string): Reference[] {
 	const refTemplate = /\{\{\s*r\s*(\|[\s\S]*?)\}\}/gi;
 	while ((match = refTemplate.exec(sanitized)) !== null) {
 		const params = match[1] ?? '';
-		const names = parseRTemplateNames(params);
-		names.forEach((name) => {
-			const ref = getOrCreateRef(name, null, '');
-			ref.uses.push({ index: ref.uses.length, anchor: null });
-		});
+		const entries = parseRTemplateEntries(params);
+		entries
+			.filter((e) => e.isName)
+			.forEach((entry) => {
+				const ref = getOrCreateRef(entry.value, null, '');
+				ref.uses.push({ index: ref.uses.length, anchor: null });
+			});
 	}
 
 	return Array.from(refs.values());
 }
 
 /**
- * Extract reference names from an {{r|...}} template parameter string.
- * Supports chained names: {{r|foo|bar|baz}} and name=foo form.
+ * Parsed parameter entry from an {{r|...}} template.
+ * Keeps order and whether the param is treated as a ref name.
  */
-export function parseRTemplateNames(paramString: string): string[] {
+export type RTemplateEntry = {
+	key: string | null;
+	value: string;
+	kind: 'name' | 'group' | 'page' | 'pages' | 'at' | 'other';
+	index: number;
+	isName: boolean;
+};
+
+/**
+ * Parse {{r|...}} parameters into ordered entries.
+ * Name params are positional, numeric (1=,2=), or name=.
+ * All other params (e.g., p=, p2=, lang=) are preserved as-is.
+ */
+export function parseRTemplateEntries(paramString: string): RTemplateEntry[] {
 	const trimmed = paramString.replace(/^\|/, '');
 	if (!trimmed) return [];
 	const parts = splitTemplateParams(trimmed);
-	const names: string[] = [];
+	const entries: RTemplateEntry[] = [];
+	let nameCounter = 0;
+	let lastNameIndex = 0;
+	let hasGroupIndex1 = false;
 	parts.forEach((part) => {
-		const val = part.trim();
-		if (!val) return;
-		const nameMatch = val.match(/^(?:name\s*=\s*)?(.*)$/i);
-		const name = nameMatch?.[1]?.trim();
-		if (name) names.push(name);
+		const raw = part.trim();
+		if (!raw) return;
+		const eqIdx = raw.indexOf('=');
+		let key = '';
+		let value = raw;
+		if (eqIdx >= 0) {
+			key = raw.slice(0, eqIdx).trim();
+			value = raw.slice(eqIdx + 1).trim();
+		}
+
+		const nameIdxMatch = key.match(/^(?:name|n)?(\d*)$/i);
+		const groupIdxMatch = key.match(/^(?:grp|group|g)?(\d*)$/i);
+		const pageIdxMatch = key.match(/^(?:page|p)?(\d*)$/i);
+		const pagesIdxMatch = key.match(/^(?:pages|pp)?(\d*)$/i);
+		const atIdxMatch = key.match(/^(?:at|location|loc)?(\d*)$/i);
+
+		let kind: RTemplateEntry['kind'] = 'other';
+		let idx = Math.max(nameCounter, 1);
+
+		if (nameIdxMatch && (!key || /^name\d*$/i.test(key) || /^n\d*$/i.test(key) || /^\d+$/.test(key))) {
+			kind = 'name';
+			if (nameIdxMatch[1]) {
+				idx = parseInt(nameIdxMatch[1], 10);
+			} else {
+				nameCounter += 1;
+				idx = nameCounter;
+			}
+			lastNameIndex = idx;
+		} else if (groupIdxMatch && (/^(grp|group|g)\d*$/i.test(key) || key === '')) {
+			kind = 'group';
+			if (groupIdxMatch[1]) {
+				idx = parseInt(groupIdxMatch[1], 10);
+			} else if (hasGroupIndex1 && lastNameIndex > 1) {
+				idx = lastNameIndex;
+			} else {
+				idx = 1;
+			}
+			if (idx === 1) {
+				hasGroupIndex1 = true;
+			}
+		} else if (pageIdxMatch && (/^(page|p)\d*$/i.test(key) || key === '')) {
+			kind = 'page';
+			idx = pageIdxMatch[1] ? parseInt(pageIdxMatch[1], 10) : 1;
+		} else if (pagesIdxMatch && (/^(pages|pp)\d*$/i.test(key) || key === '')) {
+			kind = 'pages';
+			idx = pagesIdxMatch[1] ? parseInt(pagesIdxMatch[1], 10) : 1;
+		} else if (atIdxMatch && (/^(at|location|loc)\d*$/i.test(key) || key === '')) {
+			kind = 'at';
+			idx = atIdxMatch[1] ? parseInt(atIdxMatch[1], 10) : 1;
+		}
+
+		if (kind === 'other') {
+			const digitMatch = key.match(/(\d+)$/);
+			if (digitMatch) {
+				idx = parseInt(digitMatch[1], 10);
+			}
+		}
+
+		const isNameKey = kind === 'name';
+		if (!value) return;
+		if (isNameKey && idx > nameCounter) {
+			nameCounter = idx;
+		}
+		entries.push({ key: key || null, value, isName: isNameKey, kind, index: idx || 1 });
 	});
-	return names;
+
+	return entries;
+}
+
+export function parseRTemplateNames(paramString: string): string[] {
+	return parseRTemplateEntries(paramString)
+		.filter((e) => e.isName)
+		.map((e) => e.value);
 }
 
 /**
@@ -328,9 +412,10 @@ export function transformWikitext(wikitext: string, options: TransformOptions = 
 	});
 
 	const replaced = applyReplacements(wikitext, plan.replacements);
+	const finalText = useTemplateR ? collapseRefsAndRp(replaced, true) : replaced;
 
 	return {
-		wikitext: replaced, changes: {
+		wikitext: finalText, changes: {
 			renamed: Object.entries(renameMap).map(([from, to]) => ({ from, to })),
 			deduped,
 			movedToInline: plan.movedInline,
@@ -528,7 +613,7 @@ function normalizeRefKeys(refs: Map<RefKey, RefRecord>): Map<RefKey, RefRecord> 
 function parseWikitext(wikitext: string, reflistNames: string[]): {
 	refs: Map<RefKey, RefRecord>;
 	templates: TemplateMatch[];
-	rTemplates: Array<{ id: number; start: number; end: number; names: string[] }>
+	rTemplates: Array<{ id: number; start: number; end: number; entries: RTemplateEntry[] }>
 } {
 	const refs = new Map<RefKey, RefRecord>();
 	const templates = findTemplates(wikitext, reflistNames);
@@ -581,16 +666,18 @@ function parseWikitext(wikitext: string, reflistNames: string[]): {
 		const idx = match.index ?? 0;
 		if (inTemplateRange(idx, templates)) continue;
 		const params = match[1] ?? '';
-		const names = parseRTemplateNames(params);
+		const entries = parseRTemplateEntries(params);
 		const tplId = rTemplates.length;
-		rTemplates.push({ id: tplId, start: idx, end: idx + match[0].length, names });
-		names.forEach((name) => {
-			const ref = getRef(name, null);
-			const use: RefUseInternal = {
-				name, group: null, start: idx, end: idx + match[0].length, kind: 'templateR', rTemplateId: tplId
-			};
-			ref.uses.push(use);
-		});
+		rTemplates.push({ id: tplId, start: idx, end: idx + match[0].length, entries });
+		entries
+			.filter((e) => e.isName)
+			.forEach((entry) => {
+				const ref = getRef(entry.value, null);
+				const use: RefUseInternal = {
+					name: entry.value, group: null, start: idx, end: idx + match[0].length, kind: 'templateR', rTemplateId: tplId
+				};
+				ref.uses.push(use);
+			});
 	}
 
 	templates.forEach((tpl) => {
@@ -724,8 +811,10 @@ function renderRefSelf(name: string | null, group: string | null, preferTemplate
 		// Fall back to empty self-closing tag
 		return '<ref />';
 	}
-	if (preferTemplateR && !group) {
-		return `{{r|${name}}}`;
+	if (preferTemplateR) {
+		const parts = [`${name}`];
+		if (group) parts.push(`group=${safeEscape(group)}`);
+		return `{{r|${parts.join('|')}}}`;
 	}
 	const attrs = [`name="${safeEscape(name)}"`];
 	if (group) attrs.push(`group="${safeEscape(group)}"`);
@@ -741,26 +830,260 @@ function renderRefTag(name: string | null, group: string | null, content: string
 	return `<ref${attrs.length ? ' ' + attrs.join(' ') : ''}>${inner}</ref>`;
 }
 
-function renderRTemplate(tpl: {
-	names: string[]
-}, refs: Map<RefKey, RefRecord>, preferTemplateR: boolean, renameLookup?: (name: string) => string | null | undefined): string | null {
-	const targetNames: string[] = [];
-	tpl.names.forEach((name) => {
-		const ref = refs.get(refKey(name, null));
-		const canonical = ref?.canonical ?? ref;
-		const mapped = renameLookup ? renameLookup(name) : undefined;
-		const target = mapped !== undefined ? mapped : canonical?.name ?? (ref ? null : name);
-		if (target) {
-			targetNames.push(target);
-		}
-	});
-	if (!targetNames.length) return null;
+function collapseRefsAndRp(text: string, preferTemplateR: boolean): string {
+	if (!preferTemplateR) return text;
+	const chainRegex = /(?:(?:<ref\b[^>]*\/>\s*(?:\{\{rp\|[^}]+\}\}\s*)?)|\{\{r\|[^}]+\}\}\s*(?:\{\{rp\|[^}]+\}\}\s*)?)+/gi;
 
-	// If templateR is preferred, emit a single chained template; otherwise emit self-closing refs.
+	const tokenize = (block: string): Array<{ type: 'ref' | 'r' | 'rp'; raw: string }> => {
+		const tokens: Array<{ type: 'ref' | 'r' | 'rp'; raw: string }> = [];
+		const re = /<ref\b[^>]*\/>|{{r\|[^}]+}}|{{rp\|[^}]+}}/gi;
+		let m: RegExpExecArray | null;
+		while ((m = re.exec(block)) !== null) {
+			const raw = m[0];
+			if (raw.startsWith('<ref')) tokens.push({ type: 'ref', raw });
+			else if (raw.startsWith('{{r|')) tokens.push({ type: 'r', raw });
+			else tokens.push({ type: 'rp', raw });
+		}
+		return tokens;
+	};
+
+	const parseRp = (raw: string): { page?: string; pages?: string; at?: string; group?: string; unsupported: boolean } => {
+		const inner = raw.replace(/^\{\{rp\|/i, '').replace(/\}\}$/, '');
+		const params = splitTemplateParams(inner);
+		const res: { page?: string; pages?: string; at?: string; group?: string; unsupported: boolean } = { unsupported: false };
+		params.forEach((p) => {
+			const eq = p.indexOf('=');
+			let key = '';
+			let val = p;
+			if (eq >= 0) {
+				key = p.slice(0, eq).trim();
+				val = p.slice(eq + 1).trim();
+			}
+			const norm = key.toLowerCase();
+			if (!key || norm === 'p' || norm === 'page') res.page = val;
+			else if (norm === 'pp' || norm === 'pages') res.pages = val;
+			else if (norm === 'at' || norm === 'location' || norm === 'loc') res.at = val;
+			else if (norm === 'group' || norm === 'grp' || norm === 'g') res.group = val;
+			else res.unsupported = true;
+		});
+		return res;
+	};
+
+	const refInfo = (raw: string): { name: string | null; group: string | null } => {
+		return { name: extractAttr(raw, 'name'), group: extractAttr(raw, 'group') };
+	};
+
+	const rEntriesFromR = (raw: string): RTemplateEntry[] | null => {
+		const match = raw.match(/^\{\{r\|([\s\S]+)\}\}$/i);
+		if (!match) return null;
+		const entries = parseRTemplateEntries(match[1]);
+		if (entries.some((e) => e.kind === 'other')) return null;
+		const nameCount = entries.filter((e) => e.isName).length;
+		if (!nameCount) return null;
+		if (entries.some((e) => !e.isName && e.index > nameCount)) return null;
+		return entries;
+	};
+
+	const buildChain = (items: Array<{
+		name: string;
+		group?: string | null;
+		page?: string;
+		pages?: string;
+		at?: string;
+	}>): string => {
+		const params: string[] = [];
+		const hasDetail = items.some((it) => it.page || it.pages || it.at);
+		items.forEach((it, idx) => {
+			const i = idx + 1;
+			params.push(it.name);
+			if (it.group) {
+				if (hasDetail) {
+					params.push(i === 1 ? `group=${it.group}` : `group${i}=${it.group}`);
+				} else {
+					params.push(`group=${it.group}`);
+				}
+			}
+			if (it.page) params.push(i === 1 ? `p=${it.page}` : `p${i}=${it.page}`);
+			if (it.pages) params.push(i === 1 ? `pp=${it.pages}` : `pp${i}=${it.pages}`);
+			if (it.at) params.push(i === 1 ? `loc=${it.at}` : `loc${i}=${it.at}`);
+		});
+		return `{{r|${params.join('|')}}}`;
+	};
+
+	return text.replace(chainRegex, (block) => {
+		const tokens = tokenize(block);
+		if (!tokens.length) return block;
+		const parts: string[] = [];
+		let chain: Array<{ name: string; group?: string | null; page?: string; pages?: string; at?: string }> = [];
+
+		const flushChain = () => {
+			if (chain.length) {
+				parts.push(buildChain(chain));
+				chain = [];
+			}
+		};
+
+		for (let i = 0; i < tokens.length; i++) {
+			const tok = tokens[i];
+			if (tok.type === 'ref') {
+				const rpTok = tokens[i + 1]?.type === 'rp' ? tokens[i + 1] : null;
+				if (rpTok) i++;
+				const info = refInfo(tok.raw);
+				if (!info.name) {
+					flushChain();
+					parts.push(tok.raw + (rpTok ? rpTok.raw : ''));
+					continue;
+				}
+				const rp = rpTok ? parseRp(rpTok.raw) : { unsupported: false };
+				if (rp.unsupported) {
+					flushChain();
+					parts.push(tok.raw + (rpTok ? rpTok.raw : ''));
+					continue;
+				}
+				chain.push({
+					name: info.name,
+					group: info.group,
+					page: rp.page,
+					pages: rp.pages,
+					at: rp.at
+				});
+				continue;
+			}
+
+			if (tok.type === 'r') {
+				const rpTok = tokens[i + 1]?.type === 'rp' ? tokens[i + 1] : null;
+				if (rpTok) i++;
+				const entries = rEntriesFromR(tok.raw);
+				if (!entries) {
+					flushChain();
+					parts.push(tok.raw + (rpTok ? rpTok.raw : ''));
+					continue;
+				}
+				entries
+					.filter((e) => e.isName)
+					.forEach((e) => {
+						const idx = e.index || 1;
+						const group = entries.find((en) => en.kind === 'group' && en.index === idx)?.value ?? entries.find((en) => en.kind === 'group' && en.index === 1)?.value ?? null;
+						const page = entries.find((en) => en.kind === 'page' && en.index === idx)?.value ?? entries.find((en) => en.kind === 'page' && en.index === 1)?.value;
+						const pages = entries.find((en) => en.kind === 'pages' && en.index === idx)?.value ?? entries.find((en) => en.kind === 'pages' && en.index === 1)?.value;
+						const at = entries.find((en) => en.kind === 'at' && en.index === idx)?.value ?? entries.find((en) => en.kind === 'at' && en.index === 1)?.value;
+						chain.push({ name: e.value, group, page, pages, at });
+					});
+				if (rpTok) {
+					const rp = parseRp(rpTok.raw);
+					if (!rp.unsupported && chain.length) {
+						const last = chain[chain.length - 1];
+						last.page = rp.page ?? last.page;
+						last.pages = rp.pages ?? last.pages;
+						last.at = rp.at ?? last.at;
+						last.group = rp.group ?? last.group;
+					} else {
+						flushChain();
+						parts.push(tok.raw + rpTok.raw);
+					}
+				}
+				continue;
+			}
+
+			// rp without preceding ref/r – flush
+			flushChain();
+			parts.push(tok.raw);
+		}
+		flushChain();
+		return parts.join(' ');
+	});
+}
+function renderRTemplate(
+	tpl: { entries: RTemplateEntry[] },
+	refs: Map<RefKey, RefRecord>,
+	preferTemplateR: boolean,
+	renameLookup?: (name: string) => string | null | undefined
+): string | null {
+	const nameEntries = tpl.entries.filter((e) => e.isName);
+	if (!nameEntries.length) return null;
+
+	const resolveName = (raw: string): string | null => {
+		const ref = refs.get(refKey(raw, null));
+		const canonical = ref?.canonical ?? ref;
+		const mapped = renameLookup ? renameLookup(raw) : undefined;
+		return mapped !== undefined ? mapped : canonical?.name ?? (ref ? null : raw);
+	};
+
 	if (preferTemplateR) {
-		return `{{r|${targetNames.join('|')}}}`;
+		// Preserve all params; rename names.
+		const adjusted = tpl.entries.map((e) => {
+			if (!e.isName) return e;
+			const next = resolveName(e.value);
+			if (!next) return e;
+			return { ...e, value: next };
+		});
+		return buildRTemplateString(adjusted, undefined);
 	}
-	return targetNames.map((n) => renderRefSelf(n, null, false)).join(' ');
+
+	// Convert to <ref> + optional {{rp}} when lossless; otherwise emit preserved {{r}}.
+	const segments: string[] = [];
+	const used = new Set<RTemplateEntry>();
+	let pendingUnsupported: RTemplateEntry[] = [];
+
+	const flushPending = () => {
+		if (!pendingUnsupported.length) return;
+		const tplStr = buildRTemplateString(pendingUnsupported, undefined, { renumber: true });
+		if (tplStr) segments.push(tplStr);
+		pendingUnsupported = [];
+	};
+
+	nameEntries.forEach((e, idx) => {
+		const idxNum = e.index || idx + 1;
+		const relevant = tpl.entries
+			.filter((entry) => entry.index === idxNum)
+			.filter((entry) => !used.has(entry));
+		// Ensure name param is first for stable rendering
+		const withoutName = relevant.filter((entry) => entry !== e);
+		const orderedRelevant = [e, ...withoutName];
+		const mappedRelevant = relevant.map((entry) => {
+			if (!entry.isName) return entry;
+			const next = resolveName(entry.value);
+			return next ? { ...entry, value: next } : entry;
+		});
+		const hasUnsupported = mappedRelevant.some((entry) => entry.kind === 'other');
+		const target = resolveName(e.value);
+		if (!target) return;
+
+		if (hasUnsupported) {
+			pendingUnsupported.push(...orderedRelevant.map((entry) => {
+				if (!entry.isName) return entry;
+				const next = resolveName(entry.value);
+				return next ? { ...entry, value: next } : entry;
+			}));
+			orderedRelevant.forEach((entry) => used.add(entry));
+			return;
+		}
+
+		flushPending();
+		const group = mappedRelevant.find((r) => r.kind === 'group' && r.index === idxNum)?.value ?? null;
+		const page = mappedRelevant.find((r) => r.kind === 'page' && r.index === idxNum)?.value;
+		const pagesEntry = mappedRelevant.find((r) => r.kind === 'pages' && r.index === idxNum);
+		const pages = pagesEntry?.value;
+		const pagesLabel = pagesEntry?.key && pagesEntry.key.toLowerCase().startsWith('pages') ? 'pages' : 'pp';
+		const at = mappedRelevant.find((r) => r.kind === 'at' && r.index === idxNum)?.value;
+
+		let chunk = renderRefSelf(target, group, false);
+		const rpParts: string[] = [];
+		if (page) rpParts.push(`p=${page}`);
+		if (pages) rpParts.push(`${pagesLabel}=${pages}`);
+		if (at) rpParts.push(`at=${at}`);
+		if (rpParts.length) chunk += `{{rp|${rpParts.join('|')}}}`;
+		segments.push(chunk);
+		orderedRelevant.forEach((entry) => used.add(entry));
+	});
+
+	if (pendingUnsupported.length) {
+		const remaining = tpl.entries.filter((entry) => !used.has(entry));
+		pendingUnsupported.push(...remaining);
+	}
+	flushPending();
+
+	return segments.length ? segments.join(' ') : null;
 }
 
 function normalizeContentBlock(content: string): string {
@@ -807,6 +1130,77 @@ function renderTemplate(name: string, params: TemplateParam[]): string {
 		return p.value;
 	});
 	return `{{${name}${parts.length ? '|' + parts.join('|') : ''}}}`;
+}
+
+function buildRTemplateString(
+	entries: RTemplateEntry[],
+	renameLookup?: (name: string) => string | null | undefined,
+	opts?: { renumber?: boolean }
+): string | null {
+	if (!entries.some((e) => e.isName)) return null;
+	const renumber = Boolean(opts?.renumber);
+	const nameIndexMap = new Map<number, number>();
+	if (renumber) {
+		let counter = 0;
+		entries.forEach((e) => {
+			if (!e.isName) return;
+			if (!nameIndexMap.has(e.index)) {
+				nameIndexMap.set(e.index, ++counter);
+			}
+		});
+	}
+	const parts: string[] = [];
+	entries.forEach((e) => {
+		const targetIndex = renumber
+			? (nameIndexMap.get(e.index) ?? (nameIndexMap.size ? Math.max(...nameIndexMap.values()) : e.index))
+			: e.index;
+		let val = e.value;
+		if (e.isName) {
+			const mapped = renameLookup ? renameLookup(e.value) : undefined;
+			val = mapped !== undefined ? mapped : val;
+			if (e.key) {
+				let keyOut = e.key;
+				if (renumber) {
+					const base = e.key.replace(/\d+$/, '');
+					const hadDigits = base.length !== e.key.length;
+					keyOut = hadDigits ? `${base}${targetIndex > 1 ? targetIndex : ''}` : base;
+				}
+				parts.push(`${keyOut}=${val}`);
+			} else {
+				parts.push(val);
+			}
+			return;
+		}
+		const normalizeKey = (): string | null => {
+			if (e.key) {
+				if (renumber) {
+					const base = e.key.replace(/\d+$/, '');
+					const hadDigits = base.length !== e.key.length;
+					return hadDigits ? `${base}${targetIndex > 1 ? targetIndex : ''}` : base;
+				}
+				return e.key;
+			}
+			return null;
+		};
+		const explicitKey = normalizeKey();
+		if (explicitKey) {
+			parts.push(`${explicitKey}=${val}`);
+			return;
+		}
+		const idxSuffix = targetIndex > 1 ? targetIndex.toString() : '';
+		const mappedKey =
+			e.kind === 'group'
+				? 'group'
+				: e.kind === 'page'
+					? `p${idxSuffix}`
+					: e.kind === 'pages'
+						? `pp${idxSuffix}`
+						: e.kind === 'at'
+							? `loc${idxSuffix}`
+							: null;
+		if (mappedKey) parts.push(`${mappedKey}=${val}`);
+	});
+	return `{{r|${parts.join('|')}}}`;
 }
 
 function buildStandaloneReflist(entries: Array<{
