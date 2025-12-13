@@ -662,4 +662,10 @@ Repeat <ref name="common">Common content</ref> and again <ref name="common" />
 		expect(result.wikitext).toContain('<ref name="RefB">Dos</ref>');
 		expect(result.wikitext).toContain('<ref>Tres</ref>');
 	});
+
+	it('normalizes ref content', () => {
+		const source = 'This is a reference: <ref name="metacritic">{{Cite web|title=Gamersky|url=https://www.metacritic.com/publication/gamersky/|website=www.metacritic.com|language=en|access-date=2024-04-06|archive-date=2024-06-21|archive-url=https://web.archive.org/web/20240621172355/https://www.metacritic.com/publication/gamersky/|dead-url=no}}</ref>';
+		const result = transformWikitext(source, { normalizeAll: true });
+		expect(result.wikitext).toContain('<ref name="metacritic">{{Cite web |title=Gamersky |url=https://www.metacritic.com/publication/gamersky/ |website=www.metacritic.com |language=en |dead-url=no |archive-url=https://web.archive.org/web/20240621172355/https://www.metacritic.com/publication/gamersky/ |archive-date=2024-06-21 |access-date=2024-04-06}}</ref>');
+	});
 });

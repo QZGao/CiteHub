@@ -771,7 +771,6 @@ function buildReplacementPlan(ctx: {
 			}
 			const isDefinition = ref.definitions.includes(use);
 			const canonicalContent = content || '';
-			const normalizedContent = opts.normalizeAll ? normalizeContentBlock(canonicalContent) : canonicalContent;
 			if (
 				opts.locationModeKeep &&
 				!opts.useTemplateR &&
@@ -784,7 +783,7 @@ function buildReplacementPlan(ctx: {
 			}
 			if (targetLocation === 'inline' && canonical === ref && useIdx === 0 && canonicalContent) {
 				// Ensure first use holds definition
-				const rendered = renderRefTag(targetName, ref.group, normalizedContent);
+				const rendered = renderRefTag(targetName, ref.group, canonicalContent, opts.normalizeAll);
 				replacements.push({ start: use.start, end: use.end, text: rendered });
 				if (targetName) movedInline.push(targetName);
 			} else {
@@ -804,7 +803,7 @@ function buildReplacementPlan(ctx: {
 					return;
 				}
 				const rendered = content
-					? renderRefTag(targetName, targetGroup, opts.normalizeAll ? normalizeContentBlock(content) : content)
+					? renderRefTag(targetName, targetGroup, content, opts.normalizeAll)
 					: renderRefSelf(targetName, targetGroup, opts.useTemplateR);
 				replacements.push({ start: def.start, end: def.end, text: rendered });
 				if (targetName) movedLdr.push(targetName);
@@ -865,13 +864,63 @@ function renderRefSelf(name: string | null, group: string | null, preferTemplate
 	return `<ref ${attrs.join(' ')} />`;
 }
 
-function renderRefTag(name: string | null, group: string | null, content: string): string {
+function renderRefTag(name: string | null, group: string | null, content: string, normalize = false): string {
 	const safeEscape = (value: string): string => escapeAttr(value);
 	const attrs: string[] = [];
 	if (name) attrs.push(`name="${safeEscape(name)}"`);
 	if (group) attrs.push(`group="${safeEscape(group)}"`);
-	const inner = normalizeContentBlock(content);
+	const inner = normalize ? normalizeRefBody(content) : normalizeContentBlock(content);
 	return `<ref${attrs.length ? ' ' + attrs.join(' ') : ''}>${inner}</ref>`;
+}
+
+function normalizeRefBody(content: string): string {
+	let text = normalizeContentBlock(content);
+	const citeRegex = /\{\{\s*([Cc]ite\s+[^\|\}]+)\s*\|([\s\S]*?)\}\}/g;
+	const priority = ['title', 'url', 'website', 'language', 'dead-url', 'archive-url', 'archive-date', 'access-date'];
+
+	text = text.replace(citeRegex, (match, name: string, paramText: string) => {
+		const params = parseTemplateParams('|' + paramText);
+		if (!params.length) return match;
+
+		const ordered: TemplateParam[] = [];
+		const used = new Set<number>();
+
+		const findParamIndex = (key: string): number => {
+			const lower = key.toLowerCase();
+			return params.findIndex((p) => {
+				const n = p.name?.trim().toLowerCase();
+				if (!n) return false;
+				if (n === lower) return true;
+				if (lower === 'dead-url' && n === 'deadurl') return true;
+				return false;
+			});
+		};
+
+		priority.forEach((key) => {
+			const idx = findParamIndex(key);
+			if (idx >= 0) {
+				ordered.push(params[idx]);
+				used.add(idx);
+			}
+		});
+
+		params.forEach((p, idx) => {
+			if (!used.has(idx)) {
+				ordered.push(p);
+				used.add(idx);
+			}
+		});
+
+		const parts = ordered.map((p) => {
+			const val = String(p.value).trim();
+			const name = p.name?.trim();
+			if (name) return `${name}=${val}`;
+			return val;
+		});
+		return `{{${name.trim()}${parts.length ? ' |' + parts.join(' |') : ''}}}`;
+	});
+
+	return text;
 }
 
 function collapseRefsAndRp(text: string, preferTemplateR: boolean): string {

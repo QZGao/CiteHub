@@ -73,7 +73,7 @@
 								<span class="citeforge-row__meta">Uses: {{ refUses(reference) }} <span v-if="reference.group">· {{
 									reference.group }}</span></span>
 							</div>
-							<div class="citeforge-row__snippet">{{ (reference.contentWikitext || '').slice(0, 200) || '(No inline content captured) ' }}</div>
+								<div class="citeforge-row__snippet">{{ reference.contentWikitext || '(No inline content captured) ' }}</div>
 							<div class="citeforge-row__actions">
 								<button class="citeforge-copy-btn" type="button"
 									@click.stop.prevent="copyRefContent(reference)" title="Copy raw content">

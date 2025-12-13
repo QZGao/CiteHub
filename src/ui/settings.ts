@@ -32,7 +32,7 @@ const DEFAULT_SETTINGS: Settings = {
 	minUsesForLdr: 2,
 	useTemplateR: false,
 	makeCopies: false,
-	normalizeAll: true
+	normalizeAll: false
 };
 
 /**
