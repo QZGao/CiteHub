@@ -44,22 +44,26 @@ function injectPanelStyles(): void {
 /**
  * Highlight all DOM anchors associated with a reference.
  * Clears any existing highlights before applying new ones.
- * Scrolls to the first anchor and triggers a blink animation.
+ * Optionally scrolls to the first anchor and triggers a blink animation.
  * @param ref - The reference to highlight, or null to clear all.
+ * @param opts - Control blink/scroll behavior.
  */
-function highlightRef(ref: Reference | null): void {
+function highlightRef(ref: Reference | null, opts: { blink?: boolean; scroll?: boolean } = {}): void {
 	clearHighlights();
 	if (!ref) return;
+	const { blink = true, scroll = true } = opts;
 	const anchors: Element[] = [];
 	ref.uses.forEach((use) => {
 		if (use.anchor) {
 			use.anchor.classList.add(HIGHLIGHT_CLASS);
-			use.anchor.classList.add('citeforge-ref-blink');
+			if (blink) {
+				use.anchor.classList.add('citeforge-ref-blink');
+			}
 			anchors.push(use.anchor);
 		}
 	});
 	// Scroll to the first highlighted anchor
-	if (anchors.length > 0) {
+	if (scroll && anchors.length > 0) {
 		anchors[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
 	}
 }
@@ -535,7 +539,7 @@ export async function openInspectorDialog(refs: Reference[], refreshFn?: () => P
 		},
 		mounted(this: InspectorCtx) {
 			if (this.selectedRef) {
-				highlightRef(this.selectedRef);
+				highlightRef(this.selectedRef, { blink: false, scroll: false });
 			}
 			const panelEl = document.querySelector<HTMLElement>('.citeforge-panel');
 			const sz = loadPanelSize();

@@ -145,7 +145,7 @@ function annotateHarvErrors(anchor: HTMLAnchorElement, id: string): boolean {
 
 function annotateReferenceMetadata(): void {
 	const spans = document.querySelectorAll<HTMLElement>('.Z3988');
-	const idMarkers = ['arXiv', 'ASIN', 'Bibcode', 'doi:', 'ISBN', 'ISSN', 'JFM', 'JSTOR', 'LCCN', ' MR ', 'OCLC', ' OL ', 'OSTI', 'PMC', 'PMID', 'RFC', 'SSRN', 'Zbl'];
+	const idMarkers = ['arxiv', 'asin', 'bibcode', 'doi:', 'isbn', 'issn', 'jfm', 'jstor', 'lccn', ' mr ', 'oclc', ' ol ', 'osti', 'pmc', 'pmid', 'rfc', 'ssrn', 'zbl'];
 	let withLocs = false;
 	let withoutLocs = false;
 	let contraryLocs = false;
@@ -157,7 +157,14 @@ function annotateReferenceMetadata(): void {
 		if (!parent) return;
 
 		const srctxt = parent.textContent || '';
-		const title = span.getAttribute('title') || '';
+		const srctxtLower = srctxt.toLowerCase();
+		const rawTitle = span.getAttribute('title') || '';
+		let title = rawTitle;
+		try {
+			title = decodeURIComponent(rawTitle);
+		} catch {
+			title = rawTitle;
+		}
 		const authorSegments = title.split('rft.au=');
 		const parentName = parent.nodeName;
 
@@ -180,14 +187,19 @@ function annotateReferenceMetadata(): void {
 			}
 		}
 
-		const hasId = idMarkers.some((marker) => srctxt.indexOf(marker) > 0);
+		const hasId =
+			idMarkers.some((marker) => srctxtLower.includes(marker)) || /rft_id=(?:https?:|urn:|info:doi|info:hdl)/i.test(title);
 
-		if (title.includes('rft.genre=article') && !hasId) {
+		const isArticle = title.includes('rft.genre=article');
+		const hasJournalTitle = /rft\.jtitle=|rft\.stitle=/.test(title);
+		if (isArticle && hasJournalTitle && !hasId) {
 			appendAnnotation(parent, 'Missing identifier (ISSN, JSTOR, etc.);');
 		}
 
+		const isBookItem = title.includes('rft.genre=bookitem');
 		if (title.includes('rft.genre=book')) {
 			const hasPlace = title.indexOf('rft.place') >= 0;
+			const hasBookTitle = title.includes('rft.btitle=');
 
 			if (
 				!srctxt.includes('Oxford University Press') &&
@@ -218,7 +230,8 @@ function annotateReferenceMetadata(): void {
 				}
 			}
 
-			if (title.indexOf('rft.pub') < 0) {
+			const hasPublisher = title.indexOf('rft.pub') >= 0 || (isBookItem && hasBookTitle);
+			if (!hasPublisher) {
 				appendAnnotation(parent, 'Missing Publisher;');
 			}
 
@@ -246,9 +259,11 @@ function annotateReferenceMetadata(): void {
 
 		const isWebGenre = title.includes('http') && !title.includes('rft.genre=book');
 		if (isWebGenre) {
-			if (!srctxt.includes('rchived')) {
+			const hasArchive = /archiv/i.test(srctxtLower);
+			if (!hasArchive) {
 				appendAnnotation(parent, 'Missing archive link;');
-				if (!srctxt.includes('Retrieved') && title.indexOf('rft.date') < 0) {
+				const hasAccessDate = srctxtLower.includes('retrieved') || title.indexOf('rft.date') >= 0;
+				if (!hasAccessDate) {
 					appendAnnotation(parent, 'Missing access date;');
 				}
 			}
@@ -408,7 +423,7 @@ function collectCitations(): HTMLElement[] {
 	return Array.from(nodes);
 }
 
-function collectHarvInbound(): Map<string, number> {
+function collectHarvInbound(): { inbound: Map<string, number>; count: number } {
 	const inbound = new Map<string, number>();
 	const anchors = document.querySelectorAll<HTMLAnchorElement>('a[href^="#CITEREF"]');
 	console.info('[Cite Forge][Checks] Found Harv backlinks', { count: anchors.length });
@@ -419,7 +434,7 @@ function collectHarvInbound(): Map<string, number> {
 		if (!targetFound) return;
 		inbound.set(id, (inbound.get(id) || 0) + 1);
 	});
-	return inbound;
+	return { inbound, count: anchors.length };
 }
 
 export function enableChecks(refs: Reference[]): void {
@@ -427,7 +442,7 @@ export function enableChecks(refs: Reference[]): void {
 	disableChecks();
 
 	const items = collectCitations();
-	const harvInbound = collectHarvInbound();
+	const { inbound: harvInbound, count: harvBacklinkCount } = collectHarvInbound();
 	annotateReferenceMetadata();
 	annotateReferenceSorting();
 
@@ -453,7 +468,7 @@ export function enableChecks(refs: Reference[]): void {
 		});
 
 		const id = citeNode.getAttribute('id') || '';
-		if (id.startsWith('CITEREF') && !harvInbound.get(id)) {
+		if (id.startsWith('CITEREF') && harvBacklinkCount > 0 && !harvInbound.get(id)) {
 			const host = citeNode.parentElement || citeNode;
 			appendAnnotation(host, `No link points to ${id}.`, 'warning');
 		}

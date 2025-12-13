@@ -52,4 +52,4 @@ npm test              # Run Vitest tests
   - [RefRenamer](https://en.wikipedia.org/wiki/User:Nardog/RefRenamer) (CC BY-SA 4.0) by Nardog
   - [Citation Style Marker](https://en.wikipedia.org/wiki/User:BrandonXLF/CitationStyleMarker) (CC BY-SA 4.0) by BrandonXLF
   - [HarvErrors](https://en.wikipedia.org/wiki/User:Ucucha/HarvErrors) (CC BY-SA 4.0) by Ucucha
-  - [reviewsourcecheck](https://en.wikipedia.org/wiki/User:Lingzhi2/reviewsourcecheck) (CC BY-SA 4.0) by Lingzhi2
+  - [reviewsourcecheck](https://en.wikipedia.org/wiki/User:Lingzhi2/reviewsourcecheck) (CC BY-SA 4.0) by Lingzhi2 & Ucucha
