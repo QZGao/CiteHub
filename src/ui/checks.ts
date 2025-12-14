@@ -1,3 +1,4 @@
+import { containsCJK } from '../core/string_utils';
 import type { Reference } from '../types';
 
 type MarkerRecord = { marker: HTMLElement; host: Element };
@@ -178,10 +179,11 @@ function annotateReferenceMetadata(): void {
 			}
 		}
 
-		for (let i = 1; i < authorSegments.length; i++) {
+		for (let i = 0; i < authorSegments.length; i++) {
 			if (title.includes('rft.au=') && !srctxt.includes('et al.')) {
 				if (!authorSegments[i].includes('+')) {
 					const nameParts = authorSegments[i].split('&');
+					if (containsCJK(nameParts[0])) continue; // Skip CJK names
 					appendAnnotation(parent, `Missing first name for: ${nameParts[0]};`);
 				}
 			}
@@ -259,10 +261,10 @@ function annotateReferenceMetadata(): void {
 
 		const isWebGenre = title.includes('http') && !title.includes('rft.genre=book');
 		if (isWebGenre) {
-			const hasArchive = /archiv|原始內容/i.test(srctxtLower);
+			const hasArchive = /archiv|原始內容|原始内容|オリジナル|원본 문서/i.test(srctxtLower);
 			if (!hasArchive) {
 				appendAnnotation(parent, 'Missing archive link;');
-				const hasAccessDate = /retrieved|存檔於/i.test(srctxtLower) || title.indexOf('rft.date') >= 0;
+				const hasAccessDate = /retrieved|存檔於|存档于|よりアーカイブ|에서 보존된 문서/i.test(srctxtLower) || title.indexOf('rft.date') >= 0;
 				if (!hasAccessDate) {
 					appendAnnotation(parent, 'Missing access date;');
 				}

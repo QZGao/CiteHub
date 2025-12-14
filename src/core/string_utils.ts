@@ -136,3 +136,14 @@ export function alphaIndex(char: string): number {
 export function escapeAttr(value: string): string {
 	return value.replace(/"/g, '&quot;');
 }
+
+const CJK_PATTERN = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u;
+
+/**
+ * Check if a string contains any CJK (Chinese, Japanese, Korean) characters.
+ * @param text - The string to check.
+ * @returns True if CJK characters are found, false otherwise.
+ */
+export function containsCJK(text: string): boolean {
+	return CJK_PATTERN.test(text);
+}
