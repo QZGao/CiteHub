@@ -5,7 +5,7 @@
  * @param onClick - Click handler function for the portlet link.
  */
 export function addPortletTrigger(portletId: string, label: string, onClick: () => void): void {
-	const targets = ['p-cactions', 'p-views', 'p-tb'];
+	const targets = ['p-cactions', 'p-tb'];
 	let li = document.getElementById(portletId) as HTMLLIElement | null;
 
 	if (!li) {

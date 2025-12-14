@@ -112,6 +112,12 @@ export function extractMetadata(ref: Reference, providedContent?: string): RefMe
 	const params = parseTemplateParams(content);
 	const meta: RefMetadata = {};
 
+	const templateName = (() => {
+		const match = content.match(/\{\{\s*([^{|}]+?)(?:\s*\||\s*}})/);
+		if (!match) return null;
+		return match[1].replace(/_/g, ' ').trim().toLowerCase();
+	})();
+
 	const pick = (...keys: string[]): string | undefined => pickTemplateParams(params, ...keys);
 	meta.last = pick('last', 'last1', 'surname', 'author1');
 	meta.first = pick('first', 'first1', 'given');
@@ -182,6 +188,35 @@ export function extractMetadata(ref: Reference, providedContent?: string): RefMe
 	if (phraseSource) {
 		meta.phrase = phraseSource.split(/\s+/).slice(0, 6).join(' ');
 	}
+
+	const applyTemplateOverrides = (): void => {
+		switch (templateName) {
+			case 'cite tweet': {
+				const user = pick('user');
+				const userClean = user ? stripMarkup(user) : '';
+				if (userClean) {
+					if (!meta.author) meta.author = userClean;
+					if (!meta.last) meta.last = userClean;
+				}
+				if (!meta.work) meta.work = 'Twitter';
+				if (!meta.publisher) meta.publisher = 'Twitter';
+				if (!meta.domain) meta.domain = 'twitter.com';
+				if (!meta.domainShort) meta.domainShort = 'twitter';
+				break;
+			}
+			case 'cite arxiv': {
+				if (!meta.work) meta.work = 'arXiv';
+				if (!meta.publisher) meta.publisher = 'arXiv';
+				if (!meta.domain) meta.domain = 'arxiv.com';
+				if (!meta.domainShort) meta.domainShort = 'arxiv';
+				break;
+			}
+			default:
+				break;
+		}
+	};
+
+	applyTemplateOverrides();
 
 	return meta;
 }
