@@ -259,10 +259,10 @@ function annotateReferenceMetadata(): void {
 
 		const isWebGenre = title.includes('http') && !title.includes('rft.genre=book');
 		if (isWebGenre) {
-			const hasArchive = /archiv/i.test(srctxtLower);
+			const hasArchive = /archiv|原始內容/i.test(srctxtLower);
 			if (!hasArchive) {
 				appendAnnotation(parent, 'Missing archive link;');
-				const hasAccessDate = srctxtLower.includes('retrieved') || title.indexOf('rft.date') >= 0;
+				const hasAccessDate = /retrieved|存檔於/i.test(srctxtLower) || title.indexOf('rft.date') >= 0;
 				if (!hasAccessDate) {
 					appendAnnotation(parent, 'Missing access date;');
 				}
