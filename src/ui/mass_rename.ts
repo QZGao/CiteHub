@@ -194,13 +194,13 @@ function resolveContent(ref: Reference, contentMap?: Map<string, string>, stats?
 	if (ref.name && contentMap?.has(ref.name)) {
 		const hit = contentMap.get(ref.name) || '';
 		if (stats) stats.mapByName += 1;
-		console.info('[Cite Forge][mass-rename] Using map content by name', { name: ref.name, length: hit.length });
+		// console.info('[Cite Forge][mass-rename] Using map content by name', { name: ref.name, length: hit.length });
 		return hit;
 	}
 	if (contentMap?.has(ref.id)) {
 		const hit = contentMap.get(ref.id) || '';
 		if (stats) stats.mapById += 1;
-		console.info('[Cite Forge][mass-rename] Using map content by id', { id: ref.id, length: hit.length });
+		// console.info('[Cite Forge][mass-rename] Using map content by id', { id: ref.id, length: hit.length });
 		return hit;
 	}
 	if (stats) stats.missing.push({ id: ref.id, name: ref.name ?? null });
@@ -213,14 +213,14 @@ function prepareRows(refs: Reference[], contentMap?: Map<string, string>): Renam
 		const content = resolveContent(ref, contentMap, stats);
 		const snippet = (content || '').replace(/\s+/g, ' ').trim();
 		const metadata = extractMetadata(ref, content);
-		if (!content.trim()) {
-			console.info('[Cite Forge][mass-rename] Missing content for ref', {
-				refId: ref.id,
-				name: ref.name,
-				hasMapMatch: Boolean((ref.name && contentMap?.has(ref.name)) || contentMap?.has(ref.id)),
-				mapSize: contentMap?.size ?? 0
-			});
-		}
+		// if (!content.trim()) {
+		// 	console.info('[Cite Forge][mass-rename] Missing content for ref', {
+		// 		refId: ref.id,
+		// 		name: ref.name,
+		// 		hasMapMatch: Boolean((ref.name && contentMap?.has(ref.name)) || contentMap?.has(ref.id)),
+		// 		mapSize: contentMap?.size ?? 0
+		// 	});
+		// }
 		const auto = isAutoName(ref.name);
 		return {
 			ref,
@@ -233,13 +233,13 @@ function prepareRows(refs: Reference[], contentMap?: Map<string, string>): Renam
 			snippet
 		};
 	});
-	console.info('[Cite Forge][mass-rename] Content resolution stats', {
-		totalRefs: refs.length,
-		fromRef: stats.fromRef,
-		mapByName: stats.mapByName,
-		mapById: stats.mapById,
-		missing: stats.missing.slice(0, 5)
-	});
+	// console.info('[Cite Forge][mass-rename] Content resolution stats', {
+	// 	totalRefs: refs.length,
+	// 	fromRef: stats.fromRef,
+	// 	mapByName: stats.mapByName,
+	// 	mapById: stats.mapById,
+	// 	missing: stats.missing.slice(0, 5)
+	// });
 	return rows;
 }
 
@@ -281,11 +281,11 @@ async function buildContentMap(refs: Reference[]): Promise<Map<string, string>> 
 			if (!map.has(ref.id)) map.set(ref.id, content);
 		});
 	}
-	console.info('[Cite Forge][mass-rename] Built ref content map', {
-		totalEntries: map.size,
-		withName: Array.from(map.keys()).filter((k) => !k.startsWith('__nameless_')).length,
-		sample: Array.from(map.entries()).slice(0, 5).map(([k, v]) => ({ key: k, len: v.length }))
-	});
+	// console.info('[Cite Forge][mass-rename] Built ref content map', {
+	// 	totalEntries: map.size,
+	// 	withName: Array.from(map.keys()).filter((k) => !k.startsWith('__nameless_')).length,
+	// 	sample: Array.from(map.entries()).slice(0, 5).map(([k, v]) => ({ key: k, len: v.length }))
+	// });
 	return map;
 }
 
@@ -295,10 +295,10 @@ export async function openMassRenameDialog(refs: Reference[], options?: MassRena
 	onApplyMassRename = options?.onApply || null;
 
 	const contentMap = await buildContentMap(refs);
-	console.info('[Cite Forge][mass-rename] Opening dialog with refs', {
-		refCount: refs.length,
-		contentKeys: contentMap.size
-	});
+	// console.info('[Cite Forge][mass-rename] Opening dialog with refs', {
+	// 	refCount: refs.length,
+	// 	contentKeys: contentMap.size
+	// });
 
 	if (mountedApp && isMassRenameRoot(mountedRoot)) {
 		mountedRoot.setRefs(refs, contentMap);

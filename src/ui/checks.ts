@@ -181,7 +181,7 @@ function annotateReferenceMetadata(): void {
 
 		for (let i = 0; i < authorSegments.length; i++) {
 			if (title.includes('rft.au=') && !srctxt.includes('et al.')) {
-				if (!authorSegments[i].includes('+')) {
+				if (!authorSegments[i].includes('+') && !authorSegments[i].includes('ctx_ver=')) {
 					const nameParts = authorSegments[i].split('&');
 					if (containsCJK(nameParts[0])) continue; // Skip CJK names
 					appendAnnotation(parent, `Missing first name for: ${nameParts[0]};`);
@@ -421,14 +421,14 @@ function detectStyles(target: HTMLElement | null): { style: 'CS1' | 'CS2'; csblu
 
 function collectCitations(): HTMLElement[] {
 	const nodes = document.querySelectorAll<HTMLElement>('cite, span.citation, div.citation');
-	console.info('[Cite Forge][Checks] Found citation nodes', { count: nodes.length });
+	// console.info('[Cite Forge][Checks] Found citation nodes', { count: nodes.length });
 	return Array.from(nodes);
 }
 
 function collectHarvInbound(): { inbound: Map<string, number>; count: number } {
 	const inbound = new Map<string, number>();
 	const anchors = document.querySelectorAll<HTMLAnchorElement>('a[href^="#CITEREF"]');
-	console.info('[Cite Forge][Checks] Found Harv backlinks', { count: anchors.length });
+	// console.info('[Cite Forge][Checks] Found Harv backlinks', { count: anchors.length });
 	anchors.forEach((a) => {
 		const href = a.getAttribute('href') || '';
 		const id = href.slice(1);
@@ -463,11 +463,11 @@ export function enableChecks(refs: Reference[]): void {
 		citeNode.insertAdjacentElement('afterend', marker);
 
 		markers.push({ marker, host: citeNode });
-		console.info('[Cite Forge][Checks] Marker attached', {
-			style,
-			csblue,
-			hostId: citeNode.id || null
-		});
+		// console.info('[Cite Forge][Checks] Marker attached', {
+		// 	style,
+		// 	csblue,
+		// 	hostId: citeNode.id || null
+		// });
 
 		const id = citeNode.getAttribute('id') || '';
 		if (id.startsWith('CITEREF') && harvBacklinkCount > 0 && !harvInbound.get(id)) {
